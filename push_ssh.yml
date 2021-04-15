@@ -1,0 +1,32 @@
+---
+  - hosts: localhost
+    gather_facts: False
+    user: root
+    tasks:
+     #清理旧key
+     - name: clean old key
+       file:
+        path: /root/.ssh/
+        state: absent
+     #生成新的key
+     - name: ssh-gen-key
+       shell: ssh-keygen -t rsa -P "" -f /root/.ssh/id_rsa
+       
+  - hosts: all
+    user: root
+    tasks:
+     #将密钥文件分发给部署主机
+     - name: ssh-copy
+       authorized_key: user=root key="{{ lookup('file', '/root/.ssh/id_rsa.pub') }}"
+       
+  - hosts: kube-master
+    gather_facts: False  
+    user: root
+    tasks:
+      - name: remove master id_rsa
+        ignore_errors: yes
+        file:
+          path: /root/.ssh/id_rsa
+          state: absent
+      - name: copy id_rsa to master
+        copy: src=/root/.ssh/id_rsa dest=/root/.ssh/id_rsa owner=root group=root mode=600
